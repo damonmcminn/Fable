@@ -301,17 +301,26 @@ Target "NUnitTest" (fun _ ->
     |> Testing.NUnit3.NUnit3 id
 )
 
-Target "MochaTest" (fun _ ->
+let compileAndRunMochaTests es2015 =
     let testsBuildDir = "build/tests"
+    let testCompileArgs = if es2015 then ["--ecma es2015"] else []
+    
     MSBuildDebug "src/tests/DllRef/bin" "Build" ["src/tests/DllRef/Fable.Tests.DllRef.fsproj"] |> ignore
     Node.run "." "build/fable" ["src/tests/DllRef"]
     Node.run "." "build/fable" ["src/tests/Other"]
-    Node.run "." "build/fable" ["src/tests/"]
+    Node.run "." "build/fable" ("src/tests/"::testCompileArgs)
     FileUtils.cp "src/tests/package.json" testsBuildDir
     Npm.install testsBuildDir []
     // Copy the development version of fable-core.js
     FileUtils.cp "src/fable/Fable.Core/npm/fable-core.js" "build/tests/node_modules/fable-core/"
-    Npm.script testsBuildDir "test" []
+    Npm.script testsBuildDir "test" []    
+
+Target "MochaTest" (fun _ ->
+    compileAndRunMochaTests false
+)
+
+Target "ES6MochaTest" (fun _ ->
+    compileAndRunMochaTests true
 )
 
 Target "Plugins" (fun _ ->
@@ -434,6 +443,9 @@ Target "All" ignore
   ==> "MochaTest"
   =?> ("MakeArtifactLighter", environVar "APPVEYOR" = "True")
   ==> "All"
+
+"Plugins"
+  ==> "ES6MochaTest"
 
 "FableCore"
   ==> "PublishCore"
